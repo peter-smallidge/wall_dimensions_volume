@@ -1,0 +1,68 @@
+---
+title: "wall_dimension_input"
+author: "Peter Smallidge"
+date: "4/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(skimr)        ## install.packages("skimr")
+library(readxl)
+#
+# ALT plus hypen = <- (within chunk)
+# ctrl plus shift plus m = %>% 
+# ctrl + ALT + I = insert chunk
+# filter rows, select columns
+# 
+
+```
+
+### read data from csv file, check variables and data structure
+
+<!-- note to self: in the "read_csv" code, after the file location the code
+for 'col..." etc ensures that the specified column is adjusted
+the file "cheat sheet data-import" has details 
+
+It is also possible to right-click a file name and import excel
+-->
+
+
+```{r}
+
+gasline2017_20 <- read_excel("2017-20 Gas Line Slash Dimensions 10-29-2020.xlsx", 
+    sheet = "merged", skip=1) %>% 
+  mutate_at(vars(harvest, post, year_sampled),
+            list(factor)) #make these variables into factors
+  
+
+
+
+
+```
+<!-- 
+variables h_dist_post to h_dist_pole are collected
+variables fence_ht_highest to wall_ht_outside_two are calculated
+
+fence_ht_highest	= vert dist to highest point - vert dist to post
+
+fence_ht_two	= vert dist two - vert dist post
+
+wall_width	= h dist pole - h dist post
+
+elev_diff_in_out	= sum(v_dist_post, pole_target_ht, extra_ht_pole
+                        v_dist_pole_target) * -1
+
+slope_pct	= (elev_diff_in_out / wall_width) * 100
+
+wall_ht_outside_two = elev_diff_in_out + fence_ht_two
+
+
+-->
+
