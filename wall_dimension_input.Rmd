@@ -57,6 +57,9 @@ wedge2018_2020 <- read_excel("2018-20 wedge slash wall dimensions 5-19-2020.xlsx
             list(factor)) #make these variables into factors
 
 
+wall_data <- bind_rows(gasline2017_20, redpine2017_2020,
+                       boot2018_20200, wedge2018_2020)
+
 ```
 <!-- 
 variables h_dist_post to h_dist_pole are collected
