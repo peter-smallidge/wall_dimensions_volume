@@ -1,0 +1,18 @@
+"file: ""wall_average_ht_width""  from ""wall_dimension_input.Rmd",,,,,,
+Slash Wall Heights and Widths,,,,,,
+,,,,,,
+Harvest,Year,Number of Sample Points,Width (ft),Wall Height at Two Inch Diameter (ft),Wall Height at Highest Point (ft),% Slope
+gas_line,2017,73,21.7,9.2,13.3,-15.1
+gas_line,2018,73,21.5,8.6,11.4,-17.7
+gas_line,2019,73,21.4,7.3,10.3,-15.8
+gas_line,2020,73,20.5,6.5,9.0,-15.6
+red_pine,2017,38,25.7,8.6,11.9,-12.6
+red_pine,2018,38,26.3,7.9,10.5,-11.5
+red_pine,2019,38,24.8,7.4,9.9,-13.9
+red_pine,2020,38,24.0,6.6,9.0,-14.3
+boot,2018,48,25.0,10.4,12.1,-6.0
+boot,2019,48,23.6,8.5,11.5,-7.8
+boot,2020,48,22.1,7.0,9.7,-7.8
+wedge,2018,30,22.0,7.7,11.6,-1.6
+wedge,2019,30,22.2,7.3,10.8,-5.2
+wedge,2020,30,20.4,7.0,9.6,-5.1

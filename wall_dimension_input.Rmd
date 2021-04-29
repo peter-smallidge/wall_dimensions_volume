@@ -26,20 +26,20 @@ library(readxl)
 
 ### read data from csv file, check variables and data structure
 
-<!-- note to self: in the "read_csv" code, after the file location the code
-for 'col..." etc ensures that the specified column is adjusted
-the file "cheat sheet data-import" has details 
+<!-- note to self: 
+
 
 It is also possible to right-click a file name and import excel
 -->
 
-
-```{r}
+###Input Data and Mutate Variables
+```{r, input data mutate variables}
 
 gasline2017_20 <- read_excel("2017-20 Gas Line Slash Dimensions 10-29-2020.xlsx", 
     sheet = "merged", skip=1) %>% 
   mutate_at(vars(harvest, post, year_sampled),
-            list(factor)) #make these variables into factors
+            list(factor)) %>%  #make these variables into factors
+  arrange(post, year_sampled)
   
 redpine2017_2020 <- read_excel("2017-20 Red Pine Slash Dimensions 11-4-20.xlsx", 
     sheet = "merged", skip = 1) %>% 
@@ -47,18 +47,45 @@ redpine2017_2020 <- read_excel("2017-20 Red Pine Slash Dimensions 11-4-20.xlsx",
             list(factor)) #make these variables into factors
 
 boot2018_20200 <- read_excel("2018-20 Boot Slash Wall Dimensions 5-19-20.xlsx", 
-    sheet = "merged", skip = 2) %>% 
+    sheet = "merged", skip = 1) %>% 
   mutate_at(vars(harvest, post, year_sampled),
             list(factor)) #make these variables into factors
 
 wedge2018_2020 <- read_excel("2018-20 wedge slash wall dimensions 5-19-2020.xlsx", 
-    skip = 2) %>% 
+    skip = 1) %>% 
   mutate_at(vars(harvest, post, year_sampled),
             list(factor)) #make these variables into factors
 
 
 wall_data <- bind_rows(gasline2017_20, redpine2017_2020,
-                       boot2018_20200, wedge2018_2020)
+                       boot2018_20200, wedge2018_2020) %>% 
+  rename("wall_ht_highest" = "fence_ht_highest", 
+         "wall_ht_two" = "fence_ht_two",
+         "year" = "year_sampled",
+         "month" = "month_sampled") %>% 
+  mutate(
+    wall_ht_outside_highest = ((-1) * (elev_diff_in_out)) + wall_ht_highest
+  ) %>% 
+  mutate_at(vars(built),
+            list(factor))
+
+wall_data_tidy <- wall_data %>% 
+  select(harvest, post, 
+         slope_pct, wall_width, wall_ht_outside_highest, wall_ht_outside_two,
+         built, year, month, elapsed)
+
+
+perimeter_summary <- perimeter_area_summary <- read_excel("perimeter_area_summary.xlsx", 
+    sheet = "import to r") %>% 
+  mutate_at(vars(harvest, map_label, year),
+            list(factor)) %>% 
+  mutate(
+    area_under_wall = perimeter_wall * 22 / 43560,
+    perimeter_per_acre = perimeter_harvest / area,
+    cost_per_wall_foot = perimeter_wall * 1.5 / area,
+  ) %>% 
+  rename(cost_per_harvested_acre = cost_per_acre)
+
 
 ```
 <!-- 
@@ -80,4 +107,151 @@ wall_ht_outside_two = elev_diff_in_out + fence_ht_two
 
 
 -->
+
+<!-- 
+avid_summ <- avid2020 %>% 
+  group_by(harvest, inside_fence, species, inside_slash, year) %>% 
+ summarize(
+   n = n(),
+   avg_ht = mean(ht),
+   sd_ht = sd(ht),
+   avg_basal = mean(basal_area),
+   sd_basal = sd(basal_area),
+   avg_grdCov = mean(ground_cov_pct),
+   sd_grdCov = sd(ground_cov_pct),
+   avg_subCov = mean(sub_cov_pct),
+   sd_subCov = sd(sub_cov_pct),
+   avg_canCov = mean(canopy_cov_pct),
+   sd_canCov = sd(canopy_cov_pct)
+  )
+
+
+avid_summ %>% 
+  filter(species != "bc" & harvest != "sta_rd") %>% 
+ggplot(aes(x=inside_slash, y = avg_ht, color=year)) +
+  geom_point()+
+  facet_grid(inside_fence ~ species)
+
+#assessing if basal area associated with seedling ht unfenced
+avid2020 %>% 
+  filter(species != "bc" & harvest != "sta_rd" & inside_fence != "yes") %>% 
+ggplot(aes(x=basal_area, y = ht, color=year)) +
+  geom_point()+
+  facet_grid(inside_slash ~ species)
+
+
+-->
+
+###Group Means
+```{r, group means}
+
+wall_averages <- wall_data_tidy %>% 
+  group_by(harvest, year) %>% 
+  summarize(
+    n = n(),
+    width = mean(wall_width),
+    ht_at_two_inch = mean(wall_ht_outside_two),
+    ht_highest = mean(wall_ht_outside_highest),
+    slope_pct = mean(slope_pct)
+  )
+
+write_csv(wall_averages, "wall_average_ht_width.csv")
+```
+
+
+
+###Looking at Data Patterns
+```{r, data patterns ggplot}
+wall_data_tidy %>% 
+  ggplot(aes(x=year, y=wall_ht_outside_highest, size = wall_width)) +
+  geom_point() +
+  facet_wrap((~ harvest))
+
+wall_data_tidy %>% 
+  ggplot(aes(x=wall_width, y=wall_ht_outside_highest, color = year)) +
+  geom_point() +
+  facet_wrap((~ harvest))
+
+
+```
+
+
+<!-- 
+ht_2019_mod <- lm(log(height)~spp*harvest + spp*originx2 + spp*location, data=height_common)
+
+hist(residuals(ht_2019_mod)) #tests for normal distribution
+plot(predict(ht_2019_mod), residuals(ht_2019_mod)) #tests heteroscedasticity, thus log
+
+library(emmeans)
+emmeans(ht_2019_mod, ~spp+harvest+originx2+location, type="response")
+#this calculates the mean and SE for all factor combinations, type=...reverse transformed
+
+emmip(ht_2019_mod, location ~ spp | harvest + originx2, CIs = TRUE)
+#plots the data from emmeans to help visualize interactions
+# emmip(model name, color ~, xaxis | panel1 + panel2
+
+emmeans(ht_2019_mod, pairwise ~ spp | harvest * location * originx2, type = "response")
+#calculates the contrasts
+#assess if spp (height) matters as a function of harvest*location*originx2
+
+-->
+
+###Linear Model Wall Width
+```{r, linear model width}
+
+wall_width_model <- lm(wall_width~harvest*year, data=wall_data_tidy)
+
+hist(residuals(wall_width_model))
+plot(predict(wall_width_model), residuals(wall_width_model))
+
+library(emmeans)
+emmeans(wall_width_model, ~harvest+year)
+
+emmip(wall_width_model, harvest~year, CIs=TRUE)  #color~axis, harvest is in color
+emmip(wall_width_model, year~harvest, CIs=TRUE)  #color~axis, harvest on x-axis
+
+emmeans(wall_width_model, pairwise ~ year |  harvest * year)
+
+```
+
+
+
+###Linear Model Wall Highest
+```{r, linear model highest}
+
+wall_highest_model <- lm(wall_ht_outside_highest~harvest*year, data=wall_data_tidy)
+
+hist(residuals(wall_highest_model))
+plot(predict(wall_highest_model), residuals(wall_highest_model))
+
+emmeans(wall_highest_model, ~harvest+year)
+
+emmip(wall_highest_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
+emmip(wall_highest_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
+
+emmeans(wall_highest_model, pairwise ~ year | harvest * year)
+
+```
+
+
+
+###Linear Model Wall Two Inch
+```{r, linear model two inch}
+
+wall_two_model <- lm(log(wall_ht_outside_two)~harvest*year, data=wall_data_tidy)
+
+hist(residuals(wall_two_model))  #there are data outliers that I need to fix
+plot(predict(wall_two_model), residuals(wall_two_model))
+
+emmeans(wall_two_model, ~harvest+year, type = "response")
+
+emmip(wall_two_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
+emmip(wall_two_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
+
+emmeans(wall_two_model, pairwise ~ year | harvest * year, type="response")
+
+```
+
+
+
 
