@@ -108,39 +108,6 @@ wall_ht_outside_two = elev_diff_in_out + fence_ht_two
 
 -->
 
-<!-- 
-avid_summ <- avid2020 %>% 
-  group_by(harvest, inside_fence, species, inside_slash, year) %>% 
- summarize(
-   n = n(),
-   avg_ht = mean(ht),
-   sd_ht = sd(ht),
-   avg_basal = mean(basal_area),
-   sd_basal = sd(basal_area),
-   avg_grdCov = mean(ground_cov_pct),
-   sd_grdCov = sd(ground_cov_pct),
-   avg_subCov = mean(sub_cov_pct),
-   sd_subCov = sd(sub_cov_pct),
-   avg_canCov = mean(canopy_cov_pct),
-   sd_canCov = sd(canopy_cov_pct)
-  )
-
-
-avid_summ %>% 
-  filter(species != "bc" & harvest != "sta_rd") %>% 
-ggplot(aes(x=inside_slash, y = avg_ht, color=year)) +
-  geom_point()+
-  facet_grid(inside_fence ~ species)
-
-#assessing if basal area associated with seedling ht unfenced
-avid2020 %>% 
-  filter(species != "bc" & harvest != "sta_rd" & inside_fence != "yes") %>% 
-ggplot(aes(x=basal_area, y = ht, color=year)) +
-  geom_point()+
-  facet_grid(inside_slash ~ species)
-
-
--->
 
 ###Group Means
 ```{r, group means}
@@ -249,6 +216,10 @@ emmip(wall_two_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
 emmip(wall_two_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
 
 emmeans(wall_two_model, pairwise ~ year | harvest * year, type="response")
+# sorts by harvest and compares years
+
+emmeans(wall_two_model, pairwise ~ harvest | harvest * year, type="response")
+#sorts by year and compares harvests
 
 ```
 
