@@ -34,7 +34,6 @@ It is also possible to right-click a file name and import excel
 
 ###Input Data and Mutate Variables
 ```{r, input data mutate variables}
-
 gasline2017_20 <- read_excel("2017-20 Gas Line Slash Dimensions 10-29-2020.xlsx", 
     sheet = "merged", skip=1) %>% 
   mutate_at(vars(harvest, post, year_sampled),
@@ -57,8 +56,11 @@ wedge2018_2020 <- read_excel("2018-20 wedge slash wall dimensions 5-19-2020.xlsx
             list(factor)) #make these variables into factors
 
 
-wall_data <- bind_rows(gasline2017_20, redpine2017_2020,
-                       boot2018_20200, wedge2018_2020) %>% 
+ wall_data1 <- bind_rows(gasline2017_20, redpine2017_2020)
+ wall_data2 <- bind_rows(wall_data1,boot2018_20200 )
+ wall_data3 <- bind_rows(wall_data2, wedge2018_2020)
+ 
+ wall_data <-  wall_data3 %>% 
   rename("wall_ht_highest" = "fence_ht_highest", 
          "wall_ht_two" = "fence_ht_two",
          "year" = "year_sampled",
@@ -67,24 +69,44 @@ wall_data <- bind_rows(gasline2017_20, redpine2017_2020,
     wall_ht_outside_highest = ((-1) * (elev_diff_in_out)) + wall_ht_highest
   ) %>% 
   mutate_at(vars(built),
-            list(factor))
+            list(factor)) %>% 
+  mutate(
+    wall_high_m = wall_ht_highest * 0.3048,
+    wall_width_m = wall_width * 0.3048,
+    wall_two_m = wall_ht_two
+  )
 
 wall_data_tidy <- wall_data %>% 
   select(harvest, post, 
-         slope_pct, wall_width, wall_ht_outside_highest, wall_ht_outside_two,
+         slope_pct, wall_high_m, wall_two_m, wall_width_m,
+         wall_width, wall_ht_outside_highest, wall_ht_outside_two,
          built, year, month, elapsed)
 
+write_csv(wall_data_tidy, "wall_data_tidy.csv")
+```
 
+
+```{r, perimeter summary}
 perimeter_summary <- perimeter_area_summary <- read_excel("perimeter_area_summary.xlsx", 
     sheet = "import to r") %>% 
   mutate_at(vars(harvest, map_label, year),
             list(factor)) %>% 
   mutate(
-    area_under_wall = perimeter_wall * 22 / 43560,
-    perimeter_per_acre = perimeter_harvest / area,
-    cost_per_wall_foot = perimeter_wall * 1.5 / area,
+    area_under_wall_ac = perimeter_wall * 22 / 43560,
+    perimeter_per_ac = perimeter_harvest / area,
+    cost_per_ac = perimeter_wall * 1.5 / area,
+    
+    area_ha = area / 2.47,
+    perimeter_m = perimeter_harvest * 0.3048,
+    area_under_wall_ha = area_under_wall_ac / 2.47,
+    perimeter_per_ha = (perimeter_harvest * 0.3048) / (area / 2.47 ), 
+    cost_per_ha = (perimeter_wall * 0.3048) / (area/2.47)
   ) %>% 
-  rename(cost_per_harvested_acre = cost_per_acre)
+  rename("area_ac" = "area", "perimeter_ft" = "perimeter_harvest") %>% 
+  select(harvest, year, area_ha, perimeter_m, area_under_wall_ha, perimeter_per_ha,cost_per_ha,
+         perimeter_ft, area_under_wall_ac, perimeter_per_ac, cost_per_ac)
+
+write_csv(perimeter_summary, "perimeter_summary.csv")
 
 
 ```
@@ -109,6 +131,16 @@ wall_ht_outside_two = elev_diff_in_out + fence_ht_two
 -->
 
 
+
+wall_data_tidy <- wall_data %>% 
+  select(harvest, post, 
+         slope_pct, wall_high_m, wall_two_m, wall_two_m,
+         wall_width, wall_ht_outside_highest, wall_ht_outside_two,
+         built, year, month, elapsed)
+
+
+
+
 ###Group Means
 ```{r, group means}
 
@@ -116,6 +148,10 @@ wall_averages <- wall_data_tidy %>%
   group_by(harvest, year) %>% 
   summarize(
     n = n(),
+    width_m_avg = mean(wall_width_m),
+    ht_two_m_avg = mean(wall_two_m),
+    ht_high_m_avg = mean(wall_high_m),
+    
     width = mean(wall_width),
     ht_at_two_inch = mean(wall_ht_outside_two),
     ht_highest = mean(wall_ht_outside_highest),
@@ -166,18 +202,21 @@ emmeans(ht_2019_mod, pairwise ~ spp | harvest * location * originx2, type = "res
 ###Linear Model Wall Width
 ```{r, linear model width}
 
-wall_width_model <- lm(wall_width~harvest*year, data=wall_data_tidy)
+wall_width_m_model <- lm(wall_width_m~harvest*year, data=wall_data_tidy)
 
-hist(residuals(wall_width_model))
-plot(predict(wall_width_model), residuals(wall_width_model))
+summary(wall_width_m_model)
+anova(wall_width_m_model)
+
+hist(residuals(wall_width_m_model))
+plot(predict(wall_width_m_model), residuals(wall_width_m_model))
 
 library(emmeans)
-emmeans(wall_width_model, ~harvest+year)
+emmeans(wall_width_m_model, ~harvest+year)
 
-emmip(wall_width_model, harvest~year, CIs=TRUE)  #color~axis, harvest is in color
-emmip(wall_width_model, year~harvest, CIs=TRUE)  #color~axis, harvest on x-axis
+emmip(wall_width_m_model, harvest~year, CIs=TRUE)  #color~axis, harvest is in color
+emmip(wall_width_m_model, year~harvest, CIs=TRUE)  #color~axis, harvest on x-axis
 
-emmeans(wall_width_model, pairwise ~ year |  harvest * year)
+emmeans(wall_width_m_model, pairwise ~ year |  harvest * year)
 
 ```
 
@@ -186,39 +225,44 @@ emmeans(wall_width_model, pairwise ~ year |  harvest * year)
 ###Linear Model Wall Highest
 ```{r, linear model highest}
 
-wall_highest_model <- lm(wall_ht_outside_highest~harvest*year, data=wall_data_tidy)
+wall_high_m_model <- lm(wall_high_m~harvest*year, data=wall_data_tidy)
 
-hist(residuals(wall_highest_model))
-plot(predict(wall_highest_model), residuals(wall_highest_model))
+hist(residuals(wall_high_m_model))
+plot(predict(wall_high_m_model), residuals(wall_high_m_model))
 
-emmeans(wall_highest_model, ~harvest+year)
+summary(wall_high_m_model)
+anova(wall_high_m_model)
 
-emmip(wall_highest_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
-emmip(wall_highest_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
+emmeans(wall_high_m_model, ~harvest+year)
 
-emmeans(wall_highest_model, pairwise ~ year | harvest * year)
+emmip(wall_high_m_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
+emmip(wall_high_m_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
+
+emmeans(wall_high_m_model, pairwise ~ year | harvest * year)
 
 ```
 
 
 
-###Linear Model Wall Two Inch
+###Linear Model Wall Two Inch Diameter Heights
 ```{r, linear model two inch}
 
-wall_two_model <- lm(log(wall_ht_outside_two)~harvest*year, data=wall_data_tidy)
+wall_two_m_model <- lm(wall_two_m~harvest*year, data=wall_data_tidy)
 
-hist(residuals(wall_two_model))  #there are data outliers that I need to fix
-plot(predict(wall_two_model), residuals(wall_two_model))
+hist(residuals(wall_two_m_model))  #there are data outliers that I need to fix
+plot(predict(wall_two_m_model), residuals(wall_two_m_model))
 
-emmeans(wall_two_model, ~harvest+year, type = "response")
+summary(wall_two_m_model)
+anova(wall_two_m_model) 
+emmeans(wall_two_m_model, ~harvest+year, type = "response")
 
-emmip(wall_two_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
-emmip(wall_two_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
+emmip(wall_two_m_model, harvest~year, CIs=TRUE) #color~axis, harvest is in color
+emmip(wall_two_m_model, year~harvest, CIs=TRUE) #color~axis, harvest on x-axis
 
-emmeans(wall_two_model, pairwise ~ year | harvest * year, type="response")
+emmeans(wall_two_m_model, pairwise ~ year | harvest * year, type="response")
 # sorts by harvest and compares years
 
-emmeans(wall_two_model, pairwise ~ harvest | harvest * year, type="response")
+emmeans(wall_two_m_model, pairwise ~ harvest | harvest * year, type="response")
 #sorts by year and compares harvests
 
 ```
