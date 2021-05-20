@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
+### Load Libraries
 ```{r, include=FALSE}
 
 library(tidyverse)
@@ -61,25 +61,28 @@ wedge2018_2020 <- read_excel("2018-20 wedge slash wall dimensions 5-19-2020.xlsx
  wall_data3 <- bind_rows(wall_data2, wedge2018_2020)
  
  wall_data <-  wall_data3 %>% 
-  rename("wall_ht_highest" = "fence_ht_highest", 
-         "wall_ht_two" = "fence_ht_two",
+  rename("wall_ht_highest_inside" = "fence_ht_highest", 
+         "wall_ht_two_inside" = "fence_ht_two",
          "year" = "year_sampled",
          "month" = "month_sampled") %>% 
   mutate(
-    wall_ht_outside_highest = ((-1) * (elev_diff_in_out)) + wall_ht_highest
+    wall_ht_outside_highest_ft = ((-1) * (elev_diff_in_out)) + wall_ht_highest_inside,
+    wall_ht_outside_two_ft = ((-1) * (elev_diff_in_out)) + wall_ht_two_inside
   ) %>% 
   mutate_at(vars(built),
             list(factor)) %>% 
   mutate(
-    wall_high_m = wall_ht_highest * 0.3048,
+    wall_high_outside_m = wall_ht_outside_highest_ft * 0.3048,
+    wall_high_m = wall_ht_highest_inside * 0.3048,
     wall_width_m = wall_width * 0.3048,
-    wall_two_m = wall_ht_two
+    wall_two_outside_m = wall_ht_outside_two_ft * 0.3048
   )
 
 wall_data_tidy <- wall_data %>% 
   select(harvest, post, 
-         slope_pct, wall_high_m, wall_two_m, wall_width_m,
-         wall_width, wall_ht_outside_highest, wall_ht_outside_two,
+         slope_pct, 
+         wall_width_m, wall_high_outside_m, wall_high_m, wall_two_outside_m, 
+         wall_width, wall_ht_highest_inside, wall_ht_outside_highest_ft, wall_ht_outside_two_ft,
          built, year, month, elapsed)
 
 write_csv(wall_data_tidy, "wall_data_tidy.csv")
@@ -114,7 +117,7 @@ write_csv(perimeter_summary, "perimeter_summary.csv")
 variables h_dist_post to h_dist_pole are collected
 variables fence_ht_highest to wall_ht_outside_two are calculated
 
-fence_ht_highest	= vert dist to highest point - vert dist to post
+fence_ht_highest	= vert dist to highest point - vert dist to post (this is inside wall)
 
 fence_ht_two	= vert dist two - vert dist post
 
@@ -125,21 +128,13 @@ elev_diff_in_out	= sum(v_dist_post, pole_target_ht, extra_ht_pole
 
 slope_pct	= (elev_diff_in_out / wall_width) * 100
 
-wall_ht_outside_two = elev_diff_in_out + fence_ht_two
+wall_ht_outside_two = (-1 * elev_diff_in_out) + fence_ht_two
 
 
 -->
 
-
-
-wall_data_tidy <- wall_data %>% 
-  select(harvest, post, 
-         slope_pct, wall_high_m, wall_two_m, wall_two_m,
-         wall_width, wall_ht_outside_highest, wall_ht_outside_two,
-         built, year, month, elapsed)
-
-
-
+ 
+ 
 
 ###Group Means
 ```{r, group means}
@@ -149,12 +144,14 @@ wall_averages <- wall_data_tidy %>%
   summarize(
     n = n(),
     width_m_avg = mean(wall_width_m),
-    ht_two_m_avg = mean(wall_two_m),
-    ht_high_m_avg = mean(wall_high_m),
+    wall_two_outside_m_avg = mean(wall_two_outside_m),
+    wall_high_outside_m_avg = mean(wall_high_outside_m),
+    wall_inner_high_m_avg = mean(wall_high_m),
     
     width = mean(wall_width),
-    ht_at_two_inch = mean(wall_ht_outside_two),
-    ht_highest = mean(wall_ht_outside_highest),
+    wall_two_outside_ft_avg = mean(wall_ht_outside_two_ft),
+    wall_high_outside_ft_avg = mean(wall_ht_outside_highest_ft),
+    wall_inner_high_ft_avg = mean(wall_ht_highest_inside),
     slope_pct = mean(slope_pct)
   )
 
@@ -225,7 +222,7 @@ emmeans(wall_width_m_model, pairwise ~ year |  harvest * year)
 ###Linear Model Wall Highest
 ```{r, linear model highest}
 
-wall_high_m_model <- lm(wall_high_m~harvest*year, data=wall_data_tidy)
+wall_high_m_model <- lm(wall_high_outside_m~harvest*year, data=wall_data_tidy)
 
 hist(residuals(wall_high_m_model))
 plot(predict(wall_high_m_model), residuals(wall_high_m_model))
@@ -247,7 +244,7 @@ emmeans(wall_high_m_model, pairwise ~ year | harvest * year)
 ###Linear Model Wall Two Inch Diameter Heights
 ```{r, linear model two inch}
 
-wall_two_m_model <- lm(wall_two_m~harvest*year, data=wall_data_tidy)
+wall_two_m_model <- lm(wall_two_outside_m~harvest*year, data=wall_data_tidy)
 
 hist(residuals(wall_two_m_model))  #there are data outliers that I need to fix
 plot(predict(wall_two_m_model), residuals(wall_two_m_model))
